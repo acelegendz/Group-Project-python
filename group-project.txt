@@ -1,0 +1,338 @@
+
+#Hadrien Rancoule / ID: 260970322
+
+#Steve Wen/ID: 260948939
+
+#Jessie Xu/ID: 260966881
+
+#Mingze Wang/ ID: 260986639
+
+import card
+import arrangement
+
+def draw(hand, top_discard, last_turn, picked_up_discard_cards, player_position, wildcard_rank, num_turns_this_round):
+    '''
+    (tuple, int, Boolean, list, int, int, int)---> str
+    This function is designed to decide whether the ai_player should draw from the 'stock' or from the 'discard'
+    Examples:
+    >>> draw([1, 3, 5], 7, False, [1, 2, 3], 3, 10, 35)
+    'discard'
+    >>> draw([5, 3, 7, 45], "None", False, [1, 2, 3], 3, 7, 72)
+    'stock'
+    >>> draw([1, 10, 19, 28], 38, False, [45, 46, 47, 48], 2, 11, 3)
+    'stock'
+    '''
+    if top_discard == 'None': # We do not have choice but take the stock
+        return 'stock'
+    hand1=list(hand)
+    hand1.append(top_discard)
+    hand1=tuple(hand1)
+    hand2=tuple(hand)
+    a1= arrangement.get_arrangement(hand1, wildcard_rank)
+    a2= arrangement.get_arrangement(hand2,wildcard_rank)
+    # Get possible arrangements with and without the top_discard
+    my_list1= []
+    my_list2= []
+    for ele in a1:
+        for ele1 in ele:
+            my_list1.append(ele)
+    for ele in a2:
+        for ele1 in ele:
+            my_list2.append(ele)
+    my_list3= []
+    for ele in hand:
+        my_list3.append(ele)
+    my_list3.append(top_discard) # Put all cards we can see this round into a list       
+    # Let all single cards in 
+    not_included1= []
+    not_included2= []
+    for ele in my_list3:
+        if ele not in my_list1:
+            not_included1.append(ele)
+        if ele not in my_list2:
+            not_included2.append(ele)
+    #Count penalty points respectively
+    penalty_points1= 0
+    penalty_points2= 0
+    points = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 1]
+        
+    for ele in not_included1:
+        penalty_points1+= points[card.get_rank(ele)]
+            
+    for ele in not_included2:
+        penalty_points2+= points[card.get_rank(ele)]
+         
+    if last_turn:      
+    # Get all the cards which are in g/s into lists to let the single cards stand out     
+        if penalty_points1< penalty_points2:
+            return 'discard'
+        elif penalty_points1== penalty_points2 and top_discard in not_included1 and card.get_rank(top_discard)<= 5:
+            return 'discard'
+      
+    if card.get_rank(top_discard)== wildcard_rank: # Wild cards are always more valuable than others. If we can see wild cards, pick it!
+        return 'discard'
+        
+
+    if top_discard in not_included1:
+        not_included1.remove(top_discard)
+        for ele in not_included1:
+            if card.get_rank(top_discard)== card.get_rank(ele) and card.get_rank(top_discard) <= 6:
+                return 'discard'
+             
+    # Strategy8 (Core) If we can form more groups or sequences from picking the top discard, do it!
+    arrangement_discard= []
+    arrangement_original= []
+    
+    for ele in a1:
+        for ele1 in ele:
+            arrangement_discard.append(ele1)
+    for ele in a2:
+        for ele2 in ele:
+            arrangement_original.append(ele2)
+    
+    if len(arrangement_discard)> len(arrangement_original):
+        return 'discard' # More cards fit into g/s s
+      
+    return 'stock'
+      
+    
+    
+def discard(hand, last_turn, picked_up_discard_cards, player_position, wildcard_rank, num_turns_this_round):    
+    '''(tuple, Boolean, list, int, int, int)---> int<Card>
+    This function is to automatically decide which card we should discard
+    Examples:
+    
+    >>> discard([2,20,8,30], False, [2,4,33,25], 2, 4, 20)
+    30
+    >>> discard([2,20,11,52], False, [2,4,33,25], 2, 4, 20)
+    20
+    >>> discard([1,9,10,11], False, [2,4,33,25], 2, 9, 20) 
+    1
+    '''
+    points = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 1]
+    a= arrangement.get_arrangement(tuple(hand),wildcard_rank)
+    my_list1= []
+    for ele in a:
+        for ele1 in ele:
+            my_list1.append(ele1)          
+    not_included= []
+    for ele in hand:
+        if ele not in my_list1:
+            not_included.append(ele)
+    
+    if not_included== []: # Deals with the special case when all the cards are in arrangement but still we cannot declrear our victory
+            #Get the highest rank of cards in the hand
+        for i in range(len(hand)-1): # Bubbling sort Getting the highest rank at the right end
+            for j in range(i, len(hand)-1 ):
+                if card.get_rank( hand[j])> card.get_rank(hand[j+1]):
+                   hand[j],hand[j+1] = hand[j+1],hand[j] 
+        
+        while card.get_rank(hand[-1])== 12: #deal with the special cases of Ace---Ace can make a group with 2 and 3, but its rank number is 12)
+            hand= [hand[-1]]+hand[:-1]
+        
+        return hand[-1]
+        
+    
+    #Get the highest rank of cards in the single cards list
+    for i in range(len(not_included)-1): # Bubbling sort Getting the highest rank at the right end
+        for j in range(i, len(not_included)-1 ):
+            if card.get_rank( not_included[j])> card.get_rank(not_included[j+1]):
+               not_included[j],not_included[j+1] = not_included[j+1],not_included[j] 
+    
+    while card.get_rank(not_included[-1])== 12: #deal with the special cases of Ace---Ace can make a group with 2 and 3, but its rank number is 12)
+        not_included= [not_included[-1]]+not_included[:-1]
+        if len(not_included)>=2 and card.get_rank(not_included[0])== 12 and card.get_rank(not_included[1])== 12:
+            break
+        elif len(not_included)==1 and card.get_rank(not_included[0])== 12:
+            break
+    
+    if last_turn:#If it is the last turn, we discard the card with highest punishment points anyway
+        return not_included[-1]
+    
+    #When meet situations like [3,4,10,10,Q,Q], to keep Q is dangerous(high punishment points, but Q can make a possible sequence)
+    #Assign a range of 2. If the difference between the punishment points of choosing the maximum single cars and 
+    #the largest possible sequence card is <4, we choose to discard the maximum single card; else, discard the card with highest punishment points anyways.
+    
+    i= -1
+    maximum_single_card= not_included[-1]
+    while abs(i)<len(not_included): # Iterate through the list and find the single card of the maximum rank
+        if card.get_rank(not_included[i])== card.get_rank(not_included[i-1]):
+            i-= 2
+        else:
+            maximum_single_card= not_included[i]
+            break
+    
+    
+    diff= points[card.get_rank(not_included[-1])]- points[card.get_rank(maximum_single_card)]
+    if diff< 4:
+        return maximum_single_card
+    else:
+        return not_included[-1]
+    
+    
+    
+    
+    
+    
+    
+#Hadrien Rancoule / ID: 260970322 
+ 
+#Steve Wen/ID: 260948939
+ 
+#Jessie Xu/ID: 260966881
+ 
+#Mingze Wang/ ID: 260986639
+ 
+import card
+import arrangement
+ 
+def draw(hand, top_discard, last_turn, picked_up_discard_cards, player_position, wildcard_rank, num_turns_this_round):
+    '''
+    (tuple, int, Boolean, list, int, int, int)---> str
+    This function is designed to decide whether the ai_player should draw from the 'stock' or from the 'discard'
+    Examples:
+    >>> draw([1, 3, 5], 7, False, [1, 2, 3], 3, 10, 35)
+    'discard'
+    >>> draw([5, 3, 7, 45], "None", False, [1, 2, 3], 3, 7, 72)
+    'stock'
+    >>> draw([1, 10, 19, 28], 38, False, [45, 46, 47, 48], 2, 11, 3)
+    'stock'
+    '''
+    if top_discard == 'None': # We do not have choice but take the stock
+        return 'stock'
+    hand1=list(hand)
+    hand1.append(top_discard)
+    hand1=tuple(hand1)
+    hand2=tuple(hand)
+    a1= arrangement.get_arrangement(hand1, wildcard_rank)
+    a2= arrangement.get_arrangement(hand2,wildcard_rank)
+    # Get possible arrangements with and without the top_discard
+    my_list1= []
+    my_list2= []
+    for ele in a1:
+        for ele1 in ele:
+            my_list1.append(ele)
+    for ele in a2:
+        for ele1 in ele:
+            my_list2.append(ele)
+    my_list3= []
+    for ele in hand:
+        my_list3.append(ele)
+    my_list3.append(top_discard) # Put all cards we can see this round into a list       
+    # Let all single cards in 
+    not_included1= []
+    not_included2= []
+    for ele in my_list3:
+        if ele not in my_list1:
+            not_included1.append(ele)
+        if ele not in my_list2:
+            not_included2.append(ele)
+    #Count penalty points respectively
+    penalty_points1= 0
+    penalty_points2= 0
+    points = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 1]
+        
+    for ele in not_included1:
+        penalty_points1+= points[card.get_rank(ele)]
+            
+    for ele in not_included2:
+        penalty_points2+= points[card.get_rank(ele)]
+         
+    if last_turn:      
+    # Get all the cards which are in g/s into lists to let the single cards stand out     
+        if penalty_points1< penalty_points2:
+            return 'discard'
+        elif penalty_points1== penalty_points2 and top_discard in not_included1 and card.get_rank(top_discard)<= 5:
+            return 'discard'
+      
+    if card.get_rank(top_discard)== wildcard_rank: # Wild cards are always more valuable than others. If we can see wild cards, pick it!
+        return 'discard'
+        
+ 
+    if top_discard in not_included1:
+        not_included1.remove(top_discard)
+        for ele in not_included1:
+            if card.get_rank(top_discard)== card.get_rank(ele) and card.get_rank(top_discard) <= 6:
+                return 'discard'
+             
+    # Strategy8 (Core) If we can form more groups or sequences from picking the top discard, do it!
+    arrangement_discard= []
+    arrangement_original= []
+    
+    for ele in a1:
+        for ele1 in ele:
+            arrangement_discard.append(ele1)
+    for ele in a2:
+        for ele2 in ele:
+            arrangement_original.append(ele2)
+    
+    if len(arrangement_discard)> len(arrangement_original):
+        return 'discard' # More cards fit into g/s s
+      
+    return 'stock'
+      
+    
+    
+def discard(hand, last_turn, picked_up_discard_cards, player_position, wildcard_rank, num_turns_this_round):    
+    '''(tuple, Boolean, list, int, int, int)---> int<Card>
+    This function is to automatically decide which card we should discard
+    Examples:
+    
+    >>> discard([2,20,8,30], False, [2,4,33,25], 2, 4, 20)
+    30
+    >>> discard([2,20,11,52], False, [2,4,33,25], 2, 4, 20)
+    20
+    >>> discard([1,9,10,11], False, [2,4,33,25], 2, 9, 20) 
+    1
+    '''
+    points = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 1]
+    a= arrangement.get_arrangement(tuple(hand),wildcard_rank)
+    my_list1= []
+    for ele in a:
+        for ele1 in ele:
+            my_list1.append(ele1)          
+    not_included= []
+    for ele in hand:
+        if ele not in my_list1:
+            not_included.append(ele)
+    
+    if not_included== []: # Deals with the special case when all the cards are in arrangement but still we cannot declrear our victory
+            #Get the highest rank of cards in the hand
+        for i in range(len(hand)-1): # Bubbling sort Getting the highest rank at the right end
+            for j in range(i, len(hand)-1 ):
+                if card.get_rank( hand[j])> card.get_rank(hand[j+1]):
+                   hand[j],hand[j+1] = hand[j+1],hand[j] 
+        
+        while card.get_rank(hand[-1])== 12: #deal with the special cases of Ace---Ace can make a group with 2 and 3, but its rank number is 12)
+            hand= [hand[-1]]+hand[:-1]
+        
+        return hand[-1]
+        
+    
+    #Get the highest rank of cards in the single cards list
+    for i in range(len(not_included)-1): # Bubbling sort Getting the highest rank at the right end
+        for j in range(i, len(not_included)-1 ):
+            if card.get_rank( not_included[j])> card.get_rank(not_included[j+1]):
+               not_included[j],not_included[j+1] = not_included[j+1],not_included[j] 
+    
+    while card.get_rank(not_included[-1])== 12: #deal with the special cases of Ace---Ace can make a group with 2 and 3, but its rank number is 12)
+        not_included= [not_included[-1]]+not_included[:-1]
+        if len(not_included)>=2 and card.get_rank(not_included[0])== 12 and card.get_rank(not_included[1])== 12:
+            break
+        elif len(not_included)==1 and card.get_rank(not_included[0])== 12:
+            break
+    
+    if last_turn:#If it is the last turn, we discard the card with highest punishment points anyway
+        return not_included[-1]
+    
+    #When meet situations like [3,4,10,10,Q,Q], to keep Q is dangerous(high punishment points, but Q can make a possible sequence)
+    #Assign a range of 2. If the difference between the punishment points of choosing the maximum single cars and 
+    #the largest possible sequence card is <4, we choose to discard the maximum single card; else, discard the card with highest punishment points anyways.
+    
+    i= -1
+    maximum_single_card= not_included[-1]
+    while abs(i)<len(not_included): # Iterate through the list and find the single card of the maximum rank
+        if card.get_rank(not_included[i])== card.get_rank(not_included[i-1]):
+            i-= 2
+        else:
+            maximum_single_card= not_included[i
